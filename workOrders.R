@@ -16,13 +16,28 @@ work_o <- read.csv("C:/Users/Ehren/Desktop/Trav/Work orders 20180401.csv")
 summary(work_o)
 colnames(work_o)
 
-work_o1 = work_o[,c("Work.Order.ID","Type","Site","Country","Due.Date","Engineer","Status")]
+work_o1 <- work_o[,c("Work.Order.ID","Type","Site","Country","Due.Date","Engineer","Status")]
 
 head(work_o1)
 
-cal_year = strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%Y"))
-cal_month = strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%m"))
-cal_day = strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%d"))
+cal_year <- strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%Y"))
+cal_month <- strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%m"))
+cal_day <- strtoi(format(as.Date(Sys.Date(), format="%Y-%m-%d"),"%d"))
+
+
+cal_quarter <- as.integer(substring(quarters.Date(as.Date(Sys.Date())),2))
+VRT_q <- (cal_quarter + 2) %% 4 
+if (VRT_q == 0) { VRT_q  = 4 }
+
+quarterTransform <- function(month) {
+  if (month <= 12) {q <- (2)}
+  if (month <= 10) {q <- (1)}
+  if (month <= 7) {q <- (4)}
+  if (month <= 4) {q <- (3)}
+  if (month <= 1) {q <- (2)}
+  return(q)
+}
+
 
 start_year = cal_year 
 if (cal_month < 8) {
@@ -30,6 +45,10 @@ if (cal_month < 8) {
 }
 start_month = 8
 str(start_month)
+
+# Aug 1 is the start of the year, can't just shift quarters, have to build custom function
+
+
 
 #Update here
 #################################
@@ -49,6 +68,16 @@ engineers <- c("John Sousa", "John Griffis", "Cesar Tataje", "Jacob Maddox", "Da
 sapply(work_o1,class) 
 
 work_o1$dueDate <- as.Date(work_o1$Due.Date, format = "%m/%d/%Y")
+work_o1$dueYear <- as.integer(format(work_o1$dueDate, "%Y"))
+work_o1$dueMonth <- as.integer(format(work_o1$dueDate, "%m"))
+work_o1$dueQuarter <- as.integer(substring(quarters.Date(work_o1$dueDate),2))
+
+#work_o1$dueVRTQuarter <- (work_o1$dueQuarter + 2) %% 4
+#work_o1$dueVRTQuarter <- ifelse(work_o1$dueVRTQuarter == 0, 4, work_o1$dueVRTQuarter)
+
+VRT_q <- (cal_quarter + 2) %% 4 
+if (VRT_q == 0) { VRT_q  = 4 }
+
 work_o1$dueDateYM <- format(as.Date(work_o1$dueDate), "%Y-%m")
 
 work_o1$Open <- ifelse(work_o1$Status == 'Open', 1, 0)
@@ -78,6 +107,11 @@ wo_y <- work_o1[(work_o1$dueDate > start_date_y) & (work_o1$dueDate <= end_date_
 wo_q <- work_o1[(work_o1$dueDate > start_date_q) & (work_o1$dueDate < end_date_q) & (work_o1$Engineer %in% (engineers)) & (work_o1$Type == 'PM') 
                ,c("Type","Country","Engineer","Due.Date","Open","Closed")]
 
+
+wo_m <- work_o1[(work_o1$dueYear == cal_year) & (work_o1$dueMonth == cal_month) & (work_o1$Engineer %in% (engineers)) & (work_o1$Type == 'PM') 
+                ,c("Type","Country","Engineer","Due.Date","Open","Closed")]
+
+
 #wo_y1 <- aggregate(wo_y, by = list(wo_y$Type,wo_y$Country,wo_y$Engineer), FUN = sum, na.rm=TRUE)
 
 sapply(wo_y1,class) 
@@ -98,10 +132,16 @@ wo_q1 <- ddply(wo_q, c("Engineer"), summarise,
                Closed   = sum(Closed)
 )
 
+wo_m1 <- ddply(wo_m, c("Engineer"), summarise,
+               N    = length(Open),
+               Open = sum(Open),
+               Closed   = sum(Closed)
+)
 
 wo_y1$timeFrame <- 'Year'
-wo_q1$timeFrame <- 'Quarter' 
-time_frames <- 
+wo_q1$timeFrame <- 'Quarter'
+wo_m1$timeFrame <- 'Month'  
+
 head(wo_y1)
 head(wo_q1)
 
@@ -109,7 +149,7 @@ head(wo_q1)
 
 unique(wo_y1$Engineer)
 
-wo_comb <- rbind(wo_y1,wo_q1) 
+wo_comb <- rbind(wo_y1,wo_q1,wo_m1) 
 time_frames <- unique(wo_comb$timeFrame)
 wo_comb
 
